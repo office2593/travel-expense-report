@@ -1,0 +1,17 @@
+Flask
+pytest
+jinja2
+pypdf
+pikepdf
+Pillow
+requests
+authlib
+gunicorn
+
+# Google Drive receipt storage (drive_storage.py):
+google-api-python-client
+google-auth
+
+# Optional, only if using ilovepdf_compress.py instead of the self-hosted
+# compress_pdf.py (see the privacy trade-off note in that file):
+# pylovepdf

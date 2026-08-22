@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>דוח תיאום</title>
+<style>
+  {{ font_faces_css | safe }}
+
+  :root {
+    --ink: #1B2A2E; --ink-soft: #4C5E60; --paper: #FFFFFF; --surface-2: #F1F3EE;
+    --line: #D3D9CF; --accent: #A8722F; --accent-soft: #F3E9D8;
+    --good: #3E7A5D; --good-soft: #E4EFE9; --bad: #A6443C; --bad-soft: #F6E5E2;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { direction: rtl; background: var(--paper); color: var(--ink); font-family: 'Assistant', sans-serif; font-size: 12.5px; line-height: 1.55; }
+  .page { padding: 30px 42px; page-break-after: always; }
+  .page:last-child { page-break-after: avoid; }
+
+  .letterhead { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--ink); padding-bottom: 14px; margin-bottom: 22px; }
+  .letterhead .brand { display: flex; align-items: center; gap: 12px; }
+  .letterhead .brand img { height: 58px; width: auto; display: block; }
+  .letterhead .office { font-size: 11px; color: var(--ink-soft); line-height: 1.6; }
+  .letterhead .doc-id { text-align: left; font-size: 10.5px; color: var(--ink-soft); direction: ltr; font-family: 'JetBrains Mono', Consolas, monospace; }
+
+  h1.title { font-family: 'Frank Ruhl Libre', serif; font-weight: 700; font-size: 22px; margin: 0 0 4px; }
+  p.subtitle { color: var(--ink-soft); font-size: 12px; margin: 0 0 20px; }
+
+  .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 30px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 14px 18px; margin-bottom: 20px; }
+  .meta-item .k { font-size: 10px; font-weight: 700; color: var(--ink-soft); }
+  .meta-item .v { font-size: 13px; font-weight: 700; margin-top: 1px; }
+  .meta-full { grid-column: 1 / -1; }
+
+  h2.sec { font-family: 'Frank Ruhl Libre', serif; font-weight: 600; font-size: 15.5px; margin: 26px 0 10px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+  h2.sec:first-of-type { margin-top: 0; }
+
+  .checklist { list-style: none; margin: 0 0 4px; padding: 0; }
+  .checklist li { display: flex; gap: 8px; align-items: flex-start; font-size: 12px; padding: 4px 0; }
+  .checklist li .mark { font-weight: 700; flex: none; }
+  .checklist li .mark.ok { color: var(--good); }
+  .checklist li .mark.no { color: var(--bad); }
+
+  table.ledger { width: 100%; border-collapse: collapse; font-size: 11.5px; margin-bottom: 6px; }
+  table.ledger th, table.ledger td { padding: 7px 10px; border-bottom: 1px solid var(--line); text-align: right; }
+  table.ledger thead th { font-size: 10px; font-weight: 700; color: var(--ink-soft); background: var(--surface-2); }
+  table.ledger td.num, table.ledger th.num { font-family: 'JetBrains Mono', Consolas, monospace; text-align: left; direction: ltr; white-space: nowrap; }
+  table.ledger tr.total td { font-weight: 700; border-top: 1.5px solid var(--ink); background: var(--surface-2); }
+  table.ledger td.basis { font-size: 10px; color: var(--ink-soft); }
+  .pill { display: inline-block; font-size: 9.5px; font-weight: 700; padding: 2px 8px; border-radius: 100px; }
+  .pill.good { background: var(--good-soft); color: var(--good); }
+  .pill.bad { background: var(--bad-soft); color: var(--bad); }
+
+  .fx-note { font-size: 10.5px; color: var(--ink-soft); background: var(--accent-soft); border-radius: 6px; padding: 8px 12px; margin: 4px 0 16px; }
+
+  .traveler-mini { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 8px; }
+  .traveler-mini .box { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+  .traveler-mini .box .k { font-size: 9.5px; color: var(--ink-soft); }
+  .traveler-mini .box .v { font-size: 12px; font-weight: 700; margin-top: 2px; }
+
+  .grand { display: flex; justify-content: space-between; align-items: center; background: var(--ink); color: #fff; border-radius: 8px; padding: 14px 20px; margin-top: 10px; }
+  .grand .lbl { font-size: 12px; opacity: .8; }
+  .grand .amt { font-family: 'Frank Ruhl Libre', serif; font-size: 22px; font-weight: 700; }
+
+  table.att { width: 100%; border-collapse: collapse; font-size: 11px; }
+  table.att th, table.att td { padding: 7px 10px; border-bottom: 1px solid var(--line); text-align: right; }
+  table.att thead th { background: var(--surface-2); font-size: 10px; color: var(--ink-soft); }
+  table.att td.file { font-family: 'JetBrains Mono', Consolas, monospace; font-size: 10px; direction: ltr; text-align: right; }
+
+  .page-foot { display: flex; justify-content: space-between; font-size: 9.5px; color: var(--ink-soft); border-top: 1px solid var(--line); padding-top: 8px; margin-top: 30px; }
+  .disclaimer { font-size: 10px; color: var(--ink-soft); background: var(--surface-2); border-radius: 6px; padding: 10px 14px; margin-top: 18px; line-height: 1.6; }
+</style>
+</head>
+<body>
+
+<!-- PAGE 1: COVER + SUMMARY + COMPLIANCE -->
+<div class="page">
+  <div class="letterhead">
+    <div class="brand">
+      <img src="{{ logo_data_uri }}" alt="לוגו אורן דולב רואה חשבון">
+      <div class="office">office@odcpa.co.il</div>
+    </div>
+    <div class="doc-id">{{ trip.id }}<br>הופק: {{ trip.generated_date }}</div>
+  </div>
+
+  <h1 class="title">דוח תיאום הוצאות נסיעה לחו״ל</h1>
+  <p class="subtitle">לפי תקנות מס הכנסה (ניכוי הוצאות מסויימות), תשל״ב-1972 — לשימוש פנימי בהנהלת החשבונות</p>
+
+  <div class="meta-grid">
+    <div class="meta-item"><div class="k">לקוח</div><div class="v">{{ trip.contact_name }}</div></div>
+    <div class="meta-item"><div class="k">יעד</div><div class="v">{{ trip.destination }}, {{ trip.country }}{% if trip.is_uplift %} (תעריף מוגבר {{ trip.uplift_pct }}%){% endif %}</div></div>
+    <div class="meta-item"><div class="k">תאריכי נסיעה</div><div class="v">{{ trip.start_date }} – {{ trip.end_date }}</div></div>
+    <div class="meta-item"><div class="k">נוסעים בדוח</div><div class="v">{{ travelers|length }} — {{ travelers|map(attribute='name')|join(', ') }}</div></div>
+    <div class="meta-item meta-full"><div class="k">מטרת הנסיעה</div><div class="v" style="font-weight:400">{{ trip.purpose }} — {{ trip.purpose_explanation }}</div></div>
+  </div>
+
+  <h2 class="sec">תקציר הכרה</h2>
+  <div class="traveler-mini">
+    {% for t in travelers %}
+    <div class="box"><div class="k">{{ t.name }} ({{ t.role_label }})</div><div class="v">₪ {{ "{:,.2f}".format(t.total_recognized_ils) }} מוכר</div></div>
+    {% endfor %}
+  </div>
+  <div class="grand">
+    <span class="lbl">סה״כ מוכר לצורכי מס — כל הנוסעים</span>
+    <span class="amt">₪ {{ "{:,.2f}".format(grand_total_recognized_ils) }}</span>
+  </div>
+  <p style="font-size:10px;color:var(--ink-soft);margin:6px 0 0">פירוט מלא לפי קטגוריה, כולל הוצאות שלא הוכרו במלואן, בעמודים הבאים.</p>
+
+  <h2 class="sec">עמידה בתנאי הכרה</h2>
+  <ul class="checklist">
+    {% for item in checklist %}
+    <li><span class="mark {{ 'ok' if item.ok else 'no' }}">{{ '✓' if item.ok else '○' }}</span><span>{{ item.text }}</span></li>
+    {% endfor %}
+  </ul>
+
+  <div class="disclaimer">
+    דוח זה הופק על ידי מנוע חישוב אוטומטי לפי טבלת תעריפים לשנת {{ trip.rate_year }}. יש לאמת את התעריפים בפועל (לינה, אש״ל, רכב, רשימת המדינות המוטבות ושער החליפין) מול הנוסח המחייב העדכני בחוזר מס הכנסה לפני הסתמכות לצורכי דיווח.
+  </div>
+</div>
+
+<!-- PAGE(S): PER-TRAVELER LEDGER -->
+{% for t in travelers %}
+<div class="page">
+  <h2 class="sec">טבלת תיאום — {{ t.name }} ({{ t.role_label }})</h2>
+  <div class="fx-note">💱 שער חליפין ליום {{ trip.fx_date }}: 1 {{ trip.fx_currency }} = {{ trip.fx_rate }} ILS (שער יציג בנק ישראל)</div>
+
+  <table class="ledger">
+    <thead><tr><th>קטגוריה</th><th>פירוט וביסוס בתקנות</th><th class="num">בפועל ($)</th><th class="num">מוכר ($)</th><th class="num">מוכר (₪)</th><th>סטטוס</th></tr></thead>
+    <tbody>
+      {% for row in t.rows %}
+      <tr>
+        <td>{{ row.category }}</td>
+        <td class="basis">{{ row.basis }}</td>
+        <td class="num">{{ "{:,.2f}".format(row.claimed) if row.claimed is not none else "—" }}</td>
+        <td class="num">{{ "{:,.2f}".format(row.recognized_usd) }}</td>
+        <td class="num">{{ "{:,.2f}".format(row.recognized_ils) }}</td>
+        <td><span class="pill {{ row.status_class }}">{{ row.status_label }}</span></td>
+      </tr>
+      {% endfor %}
+      <tr class="total">
+        <td colspan="2">סה״כ — {{ t.name }}</td>
+        <td class="num">{{ "{:,.2f}".format(t.total_claimed) }}</td>
+        <td class="num">{{ "{:,.2f}".format(t.total_recognized_usd) }}</td>
+        <td class="num">{{ "{:,.2f}".format(t.total_recognized_ils) }}</td>
+        <td></td>
+      </tr>
+    </tbody>
+  </table>
+  <p style="font-size:10.5px;color:var(--ink-soft);margin-top:6px">* אש״ל אינו נתבע בקבלות ולכן אינו מופיע בעמודת "בפועל"; הוא מחושב ישירות כתעריף מוכר.</p>
+
+  <div class="page-foot"><span>דוח תיאום הוצאות נסיעה לחו״ל · {{ trip.id }}</span><span>{{ t.name }}</span></div>
+</div>
+{% endfor %}
+
+<!-- LAST PAGE: RECEIPTS APPENDIX INDEX -->
+<div class="page">
+  <h2 class="sec">נספח קבלות מצורפות</h2>
+  <p style="font-size:11.5px;color:var(--ink-soft);margin-bottom:16px">כל קובץ שצירף הלקוח בטופס המקוון מאוחד כעותק מלא בהמשך קובץ ה-PDF הזה.</p>
+
+  <table class="att">
+    <thead><tr><th>נוסע</th><th>קטגוריה</th><th>קובץ</th></tr></thead>
+    <tbody>
+      {% for a in attachments %}
+      <tr><td>{{ a.traveler }}</td><td>{{ a.category }}</td><td class="file">{{ a.filename }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="disclaimer" style="margin-top:24px">
+    מסמך זה נוצר אוטומטית ממנוע חישוב התיאום של מערכת דיווח נסיעות עסקים לחו״ל. אין להסתמך על הסכומים המוצגים כאן כייעוץ מס — יש לבצע בקרה של רואה חשבון לפני הגשה.
+  </div>
+
+  <div class="page-foot"><span>דוח תיאום הוצאות נסיעה לחו״ל · {{ trip.id }}</span><span>נספח קבלות</span></div>
+</div>
+
+</body>
+</html>

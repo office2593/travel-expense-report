@@ -1,0 +1,522 @@
+<meta charset="utf-8">
+<title>פאנל ניהול — דוחות נסיעה לחו״ל</title>
+<style>
+  :root {
+    --purple: #7B2D8B; --purple-light: #c084d8; --purple-dark: #4a0a6b; --deep: #1a0030;
+    --bg: #f4f0f8; --white: #fff; --border: #e0d0f0; --text: #1a0030; --muted: #7a6a8a;
+    --green: #25D366; --green-bg: #e8f5e9; --green-text: #2e7d32;
+    --amber-bg: #fff3e0; --amber-text: #e65100;
+    --red: #e53935; --red-bg: #fce4ec; --red-text: #c62828;
+    --radius: 14px; --shadow: 0 4px 20px rgba(123,45,139,0.12);
+    --grad: linear-gradient(135deg, #7B2D8B 0%, #4a0a6b 60%, #1a0030 100%);
+    --grad-light: linear-gradient(135deg, #f8f4fc 0%, #ede0f8 100%);
+    --focus: 0 0 0 3px rgba(123,45,139,0.18);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --purple: #c084d8; --purple-light: #e3c7ef; --purple-dark: #9b5cb0; --deep: #f1e9f8;
+      --bg: #150a20; --white: #211230; --border: #3c2350; --text: #f1e9f8; --muted: #b9a6c9;
+      --green: #3ddc84; --green-bg: #163524; --green-text: #6fe3a4;
+      --amber-bg: #3a2a12; --amber-text: #f0b25e;
+      --red: #ff7a7a; --red-bg: #3a1f22; --red-text: #ff9a9a;
+      --shadow: 0 4px 24px rgba(0,0,0,0.5);
+      --grad: linear-gradient(135deg, #9b5cb0 0%, #6b2e85 60%, #2a0f3d 100%);
+      --grad-light: linear-gradient(135deg, #2a1638 0%, #35204a 100%);
+      --focus: 0 0 0 3px rgba(192,132,216,0.28);
+    }
+  }
+  :root[data-theme="dark"] {
+    --purple: #c084d8; --purple-light: #e3c7ef; --purple-dark: #9b5cb0; --deep: #f1e9f8;
+    --bg: #150a20; --white: #211230; --border: #3c2350; --text: #f1e9f8; --muted: #b9a6c9;
+    --green: #3ddc84; --green-bg: #163524; --green-text: #6fe3a4;
+    --amber-bg: #3a2a12; --amber-text: #f0b25e;
+    --red: #ff7a7a; --red-bg: #3a1f22; --red-text: #ff9a9a;
+    --shadow: 0 4px 24px rgba(0,0,0,0.5);
+    --grad: linear-gradient(135deg, #9b5cb0 0%, #6b2e85 60%, #2a0f3d 100%);
+    --grad-light: linear-gradient(135deg, #2a1638 0%, #35204a 100%);
+    --focus: 0 0 0 3px rgba(192,132,216,0.28);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { direction: rtl; background: var(--bg); color: var(--text); font-family: 'Segoe UI', Arial, sans-serif; min-height: 100vh; font-size: 14.5px; }
+
+  header { background: var(--grad); padding: 0 26px; display: flex; align-items: center; gap: 16px; height: 68px; box-shadow: 0 4px 24px rgba(26,0,48,0.3); position: sticky; top: 0; z-index: 50; }
+  header .logo-fallback { width: 38px; height: 38px; border-radius: 10px; background: rgba(255,255,255,0.15); display: flex; align-items: center; justify-content: center; font-size: 18px; }
+  header .title { color: #fff; font-size: 1.05rem; font-weight: 700; }
+  header .subtitle { color: var(--purple-light); font-size: .78rem; margin-top: 1px; }
+  header .spacer { flex: 1; }
+  header .status-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--green); box-shadow: 0 0 8px var(--green); }
+
+  nav { background: var(--white); border-bottom: 2px solid var(--border); display: flex; padding: 0 26px; gap: 4px; overflow-x: auto; }
+  nav button { background: none; border: none; border-bottom: 3px solid transparent; padding: 14px 18px; cursor: pointer; font-size: .92rem; color: var(--muted); font-family: inherit; transition: all .2s; font-weight: 700; white-space: nowrap; }
+  nav button.active { color: var(--purple); border-bottom-color: var(--purple); }
+  nav button:hover:not(.active) { color: var(--purple-dark); }
+
+  main { max-width: 1080px; margin: 26px auto; padding: 0 16px 60px; }
+  .page { display: none; }
+  .page.active { display: block; }
+
+  .card { background: var(--white); border-radius: var(--radius); box-shadow: var(--shadow); padding: 24px; margin-bottom: 18px; border: 1px solid var(--border); }
+  .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; gap: 10px; flex-wrap: wrap; }
+  .card h2 { font-size: 1rem; font-weight: 800; color: var(--purple-dark); margin: 0; }
+  .card p.desc { color: var(--muted); font-size: .82rem; margin: 2px 0 0; }
+
+  .section-title { font-size: .68rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1.3px; color: var(--purple); margin: 22px 0 10px; display: flex; align-items: center; gap: 8px; }
+  .section-title:first-of-type { margin-top: 0; }
+  .section-title::after { content:''; flex:1; height:1px; background: linear-gradient(90deg, var(--border), transparent); }
+
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 18px; border: none; border-radius: 10px; cursor: pointer; font-size: .85rem; font-weight: 700; font-family: inherit; transition: all .15s; }
+  .btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,.15); }
+  .btn-primary { background: var(--grad); color: #fff; }
+  .btn-secondary { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
+  .btn-ghost { background: transparent; color: var(--purple); border: 1.5px solid var(--purple); }
+  .btn-sm { padding: 6px 13px; font-size: .76rem; }
+
+  /* stats */
+  .stats-row { display: flex; gap: 14px; margin-bottom: 20px; flex-wrap: wrap; }
+  .stat-chip { flex: 1; min-width: 140px; padding: 16px 20px; border-radius: 12px; background: var(--grad); color: #fff; }
+  .stat-chip .num { font-size: 1.7rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .stat-chip .lbl { font-size: .76rem; opacity: .85; margin-top: 2px; }
+
+  /* filters */
+  .filter-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+  .filter-row select, .filter-row input { border: 1.5px solid var(--border); border-radius: 9px; padding: 8px 12px; font-size: .85rem; font-family: inherit; background: var(--white); color: var(--text); }
+
+  /* table */
+  table.log { width: 100%; border-collapse: collapse; font-size: .86rem; }
+  table.log th { background: var(--grad-light); padding: 10px 12px; text-align: right; font-weight: 700; color: var(--purple-dark); border-bottom: 2px solid var(--border); font-size: .78rem; }
+  table.log td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  table.log tbody tr { cursor: pointer; }
+  table.log tbody tr:hover td { background: #faf7fd; }
+  table.log td.num { font-variant-numeric: tabular-nums; direction: ltr; text-align: left; }
+
+  .pill { display: inline-block; font-size: .74rem; font-weight: 700; padding: 3px 11px; border-radius: 100px; }
+  .pill.pending { background: var(--amber-bg); color: var(--amber-text); }
+  .pill.done { background: var(--green-bg); color: var(--green-text); }
+  .pill.review { background: var(--red-bg); color: var(--red-text); }
+
+  .detail-row td { background: var(--bg); padding: 0; }
+  .detail-inner { padding: 16px 20px; display: grid; grid-template-columns: 1.2fr 1fr; gap: 20px; }
+  .detail-inner .k { font-size: .74rem; color: var(--muted); }
+  .detail-inner .v { font-size: .86rem; font-weight: 700; margin-bottom: 8px; }
+  .audit-list { list-style: none; margin: 0; padding: 0; }
+  .audit-list li { display: flex; gap: 8px; font-size: .78rem; color: var(--muted); padding: 4px 0; border-bottom: 1px dashed var(--border); }
+  .audit-list li:last-child { border-bottom: none; }
+  .audit-list .t { font-family: 'Consolas', monospace; font-size: .72rem; color: var(--purple-dark); flex: none; }
+
+  /* rate management */
+  .rate-year { display: flex; align-items: center; gap: 10px; }
+  .rate-year select { border: 1.5px solid var(--purple-light); border-radius: 100px; padding: 5px 16px; font-weight: 700; color: var(--purple-dark); background: var(--grad-light); font-family: inherit; }
+
+  .rate-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .rate-field { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+  .rate-field label { display: block; font-size: .72rem; font-weight: 700; color: var(--muted); margin-bottom: 6px; }
+  .rate-field .input-wrap { display: flex; align-items: center; gap: 6px; }
+  .rate-field input[type="number"] { width: 100%; border: 1.5px solid var(--border); border-radius: 8px; padding: 8px 10px; font-size: .95rem; font-family: 'Consolas', monospace; font-weight: 700; color: var(--text); background: var(--white); }
+  .rate-field .unit { font-size: .78rem; color: var(--muted); flex: none; }
+  .rate-field input:focus-visible { outline: none; border-color: var(--purple); box-shadow: var(--focus); }
+  .rate-field .note { font-size: .68rem; color: var(--muted); margin-top: 5px; line-height: 1.4; }
+
+  .country-manage { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+  .country-chip { display: inline-flex; align-items: center; gap: 7px; background: var(--grad-light); border: 1.5px solid var(--purple-light); color: var(--purple-dark); border-radius: 100px; padding: 5px 6px 5px 13px; font-size: .8rem; font-weight: 700; }
+  .country-chip button { border: none; background: var(--white); color: var(--purple-dark); width: 18px; height: 18px; border-radius: 50%; cursor: pointer; font-size: 11px; }
+  .country-add { display: flex; gap: 8px; }
+  .country-add input { flex: 1; border: 1.5px solid var(--border); border-radius: 8px; padding: 7px 12px; font-family: inherit; }
+
+  .fx-info { display: flex; align-items: center; gap: 12px; background: var(--grad-light); border: 1px solid var(--purple-light); border-radius: 10px; padding: 12px 16px; font-size: .82rem; color: var(--purple-dark); }
+  .fx-info .dot3 { width: 9px; height: 9px; border-radius: 50%; background: var(--green); flex: none; }
+
+  .save-bar { position: sticky; bottom: 0; background: var(--white); border-top: 1px solid var(--border); margin: 24px -24px -24px; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; border-radius: 0 0 var(--radius) var(--radius); }
+  .save-bar .meta { font-size: .76rem; color: var(--muted); }
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(0); background: var(--ink,var(--text)); color: var(--bg); padding: 11px 22px; border-radius: 100px; font-size: .85rem; font-weight: 700; box-shadow: var(--shadow); opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; z-index: 100; background: var(--purple-dark); color: #fff; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(-6px); }
+
+  table.changelog { width: 100%; border-collapse: collapse; font-size: .8rem; margin-top: 8px; }
+  table.changelog th { background: var(--grad-light); padding: 8px 10px; text-align: right; font-weight: 700; color: var(--purple-dark); font-size: .7rem; }
+  table.changelog td { padding: 8px 10px; border-bottom: 1px solid var(--border); }
+  table.changelog td.diff { font-family: 'Consolas', monospace; font-size: .75rem; }
+  table.changelog td.diff .old { color: var(--red-text); text-decoration: line-through; }
+  table.changelog td.diff .new { color: var(--green-text); font-weight: 700; }
+
+  .empty { text-align: center; color: var(--muted); padding: 40px; font-size: .9rem; }
+
+  @media (max-width: 760px) {
+    .rate-grid { grid-template-columns: 1fr 1fr; }
+    .detail-inner { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 480px) {
+    .rate-grid { grid-template-columns: 1fr; }
+    main { padding: 0 8px 40px; }
+  }
+</style>
+
+<header>
+  <div class="logo-fallback">📊</div>
+  <div>
+    <div class="title">פאנל ניהול — דוחות נסיעה לחו״ל</div>
+    <div class="subtitle">משרד רואה חשבון · odcpa.co.il</div>
+  </div>
+  <div class="spacer"></div>
+  <div class="status-dot" title="מערכת פעילה"></div>
+</header>
+
+<nav>
+  <button class="active" data-page="submissions">📋 הגשות</button>
+  <button data-page="rates">💱 ניהול תעריפים</button>
+</nav>
+
+<main>
+
+  <!-- ══ SUBMISSIONS ══ -->
+  <div id="page-submissions" class="page active">
+    <div class="stats-row">
+      <div class="stat-chip"><div class="num" id="stat-month">—</div><div class="lbl">הגשות החודש</div></div>
+      <div class="stat-chip"><div class="num" id="stat-pending">—</div><div class="lbl">ממתינות לבדיקה</div></div>
+      <div class="stat-chip"><div class="num" id="stat-total">—</div><div class="lbl">סה״כ מוכר מצטבר</div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h2>כל ההגשות</h2>
+        <button class="btn btn-secondary btn-sm">🔄 רענן</button>
+      </div>
+      <div class="filter-row">
+        <select id="f-status">
+          <option value="">כל הסטטוסים</option>
+          <option value="pending">ממתין לבדיקה</option>
+          <option value="review">דורש תשומת לב</option>
+          <option value="done">אושר</option>
+        </select>
+        <input type="text" placeholder="חיפוש לפי שם לקוח…" id="f-client">
+        <input type="date" id="f-from" title="מתאריך">
+      </div>
+
+      <div style="overflow-x:auto">
+      <table class="log" id="subs-table">
+        <thead>
+          <tr><th></th><th>תאריך הגשה</th><th>לקוח</th><th>יעד</th><th>נוסעים</th><th>סטטוס</th><th class="num">סה״כ מוכר</th></tr>
+        </thead>
+        <tbody id="subs-body"></tbody>
+      </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ RATE MANAGEMENT ══ -->
+  <div id="page-rates" class="page">
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2>ניהול תעריפים</h2>
+          <p class="desc">הסכומים כאן מזינים ישירות את מנוע חישוב התיאום — ללא צורך בשינוי קוד.</p>
+        </div>
+        <div class="rate-year">
+          <span style="font-size:.78rem;color:var(--muted)">חלה על שנת:</span>
+          <select id="rate-year-select">
+            <option>2026</option>
+            <option>2025</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="section-title">לינה — תקרות לפי ותק שהייה</div>
+      <div class="rate-grid">
+        <div class="rate-field"><label>תקרה ללילה — לילות 1–7</label>
+          <div class="input-wrap"><span class="unit">$</span><input type="number" value="365" data-rate="lodge_tier1_cap"></div>
+          <div class="note">100% הכרה עד לתקרה זו</div></div>
+        <div class="rate-field"><label>סף מוכר במלואו — לילות 8–90</label>
+          <div class="input-wrap"><span class="unit">$</span><input type="number" value="160" data-rate="lodge_tier2_floor"></div>
+          <div class="note">מעל הסף מוכר 75% מההפרש</div></div>
+        <div class="rate-field"><label>אחוז הכרה מעל הסף — לילות 8–90</label>
+          <div class="input-wrap"><input type="number" value="75" data-rate="lodge_tier2_pct"><span class="unit">%</span></div>
+          <div class="note">עד לתקרה העליונה של $365</div></div>
+        <div class="rate-field"><label>תקרה ללילה — מעל 90 לילה</label>
+          <div class="input-wrap"><span class="unit">$</span><input type="number" value="160" data-rate="lodge_tier3_cap"></div>
+          <div class="note">תקרה קבועה ללא הכרה חלקית</div></div>
+      </div>
+
+      <div class="section-title">אש״ל — תעריף יומי קבוע</div>
+      <div class="rate-grid">
+        <div class="rate-field"><label>יש לינה בקבלות</label>
+          <div class="input-wrap"><span class="unit">$</span><input type="number" value="102" data-rate="perdiem_with_lodging"></div>
+          <div class="note">ליום עסקי אחד</div></div>
+        <div class="rate-field"><label>אין לינה בקבלות</label>
+          <div class="input-wrap"><span class="unit">$</span><input type="number" value="171" data-rate="perdiem_no_lodging"></div>
+          <div class="note">ליום עסקי אחד</div></div>
+      </div>
+
+      <div class="section-title">רכב שכור וטיסה</div>
+      <div class="rate-grid">
+        <div class="rate-field"><label>תקרת רכב שכור ליום</label>
+          <div class="input-wrap"><span class="unit">$</span><input type="number" value="80" data-rate="car_cap"></div>
+          <div class="note">ללא קשר למחיר בפועל</div></div>
+        <div class="rate-field"><label>מכפיל מדינות מוטבות</label>
+          <div class="input-wrap"><input type="number" value="125" data-rate="uplift_pct"><span class="unit">%</span></div>
+          <div class="note">חל על תקרות הלינה והשהייה</div></div>
+        <div class="rate-field"><label>מדיניות טיסה — מחלקה ראשונה</label>
+          <div class="input-wrap" style="font-size:.82rem;color:var(--text)">מוגבל למחיר מחלקת עסקים</div>
+          <div class="note">תיירים/עסקים מוכרים במלואם תמיד</div></div>
+      </div>
+
+      <div class="section-title">מדינות עם תעריף מוגבר (פנימי — לא מוצג ללקוח)</div>
+      <div class="country-manage" id="uplift-countries"></div>
+      <div class="country-add">
+        <input type="text" id="new-country" placeholder="הוספת מדינה לרשימה…">
+        <button class="btn btn-secondary btn-sm" id="add-country-btn">+ הוספה</button>
+      </div>
+
+      <div class="section-title">שער חליפין — מטבע חוץ</div>
+      <div class="fx-info"><span class="dot3"></span><span><b>מסונכרן אוטומטית פעם ביום</b> מה-SDMX Edge API של בנק ישראל (שער יציג יומי), ונשמר מקומית — כך שהפקת דוח לא תלויה בזמינות ה-API של בנק ישראל.<br>סנכרון אחרון: <b id="fx-last-sync">15.08.2026 20:30</b> · הסנכרון הבא: <b id="fx-next-sync">16.08.2026 06:00</b></span></div>
+      <div class="rate-grid" style="margin-top:12px">
+        <div class="rate-field"><label>USD → ILS</label><div style="font-size:1.05rem;font-weight:800;font-family:'Consolas',monospace">241 ימי מסחר</div><div class="note">14.08.2025 – 14.08.2026</div></div>
+        <div class="rate-field"><label>EUR → ILS</label><div style="font-size:1.05rem;font-weight:800;font-family:'Consolas',monospace">241 ימי מסחר</div><div class="note">14.08.2025 – 14.08.2026</div></div>
+        <div class="rate-field"><label>GBP → ILS</label><div style="font-size:1.05rem;font-weight:800;font-family:'Consolas',monospace">241 ימי מסחר</div><div class="note">14.08.2025 – 14.08.2026</div></div>
+      </div>
+      <button class="btn btn-secondary btn-sm" id="fx-sync-now" style="margin-top:12px">🔄 הרצת סנכרון עכשיו</button>
+      <p class="desc" style="margin-top:6px">ימי שישי–שבת וחגים: המערכת משתמשת אוטומטית בשער הפרסום העסקי הקודם ביותר, כי בנק ישראל לא מפרסם שער בימים אלה.</p>
+
+      <div class="save-bar">
+        <span class="meta">עודכן לאחרונה על ידי <b>office@odcpa.co.il</b> · 2026-08-14</span>
+        <button class="btn btn-primary" id="save-rates-btn">שמירת שינויים</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2 style="margin-bottom:4px">היסטוריית עדכוני תעריפים</h2>
+      <p class="desc" style="margin-bottom:14px">כל שינוי בתעריפים נשמר ללוג — לצורך מעקב אחרי דוחות שהופקו לפני ואחרי העדכון.</p>
+      <table class="changelog">
+        <thead><tr><th>תאריך</th><th>בוצע על ידי</th><th>שדה</th><th>שינוי</th></tr></thead>
+        <tbody id="changelog-body"><tr><td colspan="4"><div class="empty">טוען…</div></td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  var SUBMISSIONS = [];
+  var currentRates = null; // last-loaded rates object for the selected year, merged with edits on save
+
+  function statusInfo(s){
+    if (s==='pending') return {cls:'pending', txt:'ממתין לבדיקה'};
+    if (s==='review') return {cls:'review', txt:'דורש תשומת לב'};
+    return {cls:'done', txt:'אושר'};
+  }
+
+  function fmtDate(iso){
+    if (!iso) return '—';
+    return iso.slice(0,10);
+  }
+
+  function loadSubmissions(){
+    var tbody = document.getElementById('subs-body');
+    tbody.innerHTML = '<tr><td colspan="7"><div class="empty">טוען…</div></td></tr>';
+    fetch('/api/admin/submissions', {credentials:'same-origin'})
+      .then(function(r){ return r.json(); })
+      .then(function(rows){ SUBMISSIONS = rows; renderSubs(); renderStats(); })
+      .catch(function(){ tbody.innerHTML = '<tr><td colspan="7"><div class="empty">שגיאה בטעינת הגשות</div></td></tr>'; });
+  }
+
+  function renderStats(){
+    var now = new Date();
+    var thisMonth = SUBMISSIONS.filter(function(s){
+      var d = new Date(s.created_at);
+      return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+    }).length;
+    var pending = SUBMISSIONS.filter(function(s){ return s.status === 'pending'; }).length;
+    var total = SUBMISSIONS.reduce(function(sum, s){ return sum + (s.grand_total_recognized || 0); }, 0);
+    document.getElementById('stat-month').textContent = thisMonth;
+    document.getElementById('stat-pending').textContent = pending;
+    document.getElementById('stat-total').textContent = '₪ ' + total.toLocaleString('he-IL', {maximumFractionDigits:0});
+  }
+
+  function renderSubs(){
+    var tbody = document.getElementById('subs-body');
+    var statusFilter = document.getElementById('f-status').value;
+    var clientFilter = document.getElementById('f-client').value.trim();
+    var rows = SUBMISSIONS.filter(function(s){
+      if (statusFilter && s.status !== statusFilter) return false;
+      if (clientFilter && (s.contact_name||'').indexOf(clientFilter) === -1) return false;
+      return true;
+    });
+    if (!rows.length) { tbody.innerHTML = '<tr><td colspan="7"><div class="empty">אין הגשות תואמות לסינון</div></td></tr>'; return; }
+    tbody.innerHTML = rows.map(function(s){
+      var st = statusInfo(s.status);
+      var total = s.grand_total_recognized;
+      return '<tr data-id="'+s.id+'" class="main-row">'
+        + '<td>▸</td><td>'+fmtDate(s.created_at)+'</td><td>'+(s.contact_name||'—')+'</td><td>'+s.destination+', '+s.country+'</td><td>'+s.traveler_count+'</td>'
+        + '<td><span class="pill '+st.cls+'">'+st.txt+'</span></td>'
+        + '<td class="num">'+(total!=null ? '₪ '+Number(total).toLocaleString('he-IL',{minimumFractionDigits:2}) : '—')+'</td></tr>';
+    }).join('');
+  }
+
+  function toggleDetail(tr){
+    var id = tr.dataset.id;
+    var existing = tr.nextElementSibling;
+    if (existing && existing.classList.contains('detail-row')) { existing.remove(); tr.querySelector('td').textContent='▸'; return; }
+    document.querySelectorAll('.detail-row').forEach(function(r){ r.remove(); });
+    document.querySelectorAll('.main-row td:first-child').forEach(function(td){ td.textContent='▸'; });
+    tr.querySelector('td').textContent = '▾';
+    var detail = document.createElement('tr');
+    detail.className = 'detail-row';
+    detail.innerHTML = '<td colspan="7"><div class="detail-inner"><div class="empty">טוען…</div></div></td>';
+    tr.after(detail);
+
+    fetch('/api/admin/submissions/'+id, {credentials:'same-origin'})
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        var trip = d.trip;
+        detail.querySelector('.detail-inner').innerHTML =
+          '<div><div class="k">מטרת נסיעה</div><div class="v">'+(trip.purpose||'—')+' — '+(trip.purpose_explanation||'')+'</div>'
+          + '<div class="k">הוגש</div><div class="v">'+fmtDate(trip.created_at)+'</div>'
+          + '<div class="k">נוסעים</div><div class="v">'+d.travelers.length+'</div>'
+          + '<div style="margin-top:6px">'+(trip.pdf_file_ref ? '<a class="btn btn-secondary btn-sm" href="/api/admin/submissions/'+id+'/pdf" target="_blank">⬇ הורדת PDF</a>' : '<span class="hint">PDF טרם הופק</span>')+'</div></div>'
+          + '<div><div class="k" style="margin-bottom:6px">יומן ביקורת</div><ul class="audit-list">'
+          + d.audit.map(function(a){ return '<li><span class="t">'+a.ts+'</span><span>'+a.event+(a.note?' — '+a.note:'')+(a.actor?' ('+a.actor+')':'')+'</span></li>'; }).join('')
+          + '</ul></div>';
+      })
+      .catch(function(){ detail.querySelector('.detail-inner').innerHTML = '<div class="empty">שגיאה בטעינת פרטים</div>'; });
+  }
+
+  document.getElementById('subs-body').addEventListener('click', function(e){
+    var tr = e.target.closest('tr.main-row');
+    if (!tr) return;
+    toggleDetail(tr);
+  });
+  document.getElementById('f-status').addEventListener('change', renderSubs);
+  document.getElementById('f-client').addEventListener('input', renderSubs);
+  loadSubmissions();
+
+  function renderCountries(){
+    var list = (currentRates && currentRates.uplift_countries) || [];
+    document.getElementById('uplift-countries').innerHTML = list.map(function(c, i){
+      return '<span class="country-chip">'+c+'<button data-idx="'+i+'" aria-label="הסרה">&times;</button></span>';
+    }).join('');
+  }
+  document.getElementById('uplift-countries').addEventListener('click', function(e){
+    var btn = e.target.closest('button');
+    if (!btn || !currentRates) return;
+    currentRates.uplift_countries.splice(+btn.dataset.idx, 1);
+    renderCountries();
+  });
+  document.getElementById('add-country-btn').addEventListener('click', function(){
+    var input = document.getElementById('new-country');
+    var val = input.value.trim();
+    if (!val || !currentRates) return;
+    currentRates.uplift_countries.push(val);
+    input.value = '';
+    renderCountries();
+  });
+
+  var RATE_FIELD_MAP = {
+    lodge_tier1_cap: {key:'lodging_tier1_cap'},
+    lodge_tier2_floor: {key:'lodging_tier2_floor'},
+    lodge_tier2_pct: {key:'lodging_tier2_pct', scale:0.01},
+    lodge_tier3_cap: {key:'lodging_tier3_cap'},
+    perdiem_with_lodging: {key:'perdiem_with_lodging'},
+    perdiem_no_lodging: {key:'perdiem_no_lodging'},
+    car_cap: {key:'car_cap_per_day'},
+    uplift_pct: {key:'uplift_pct', scale:0.01}
+  };
+
+  function fillRateInputs(){
+    document.querySelectorAll('[data-rate]').forEach(function(el){
+      var map = RATE_FIELD_MAP[el.dataset.rate];
+      if (!map || !currentRates) return;
+      var raw = currentRates[map.key];
+      el.value = map.scale ? Math.round(raw / map.scale) : raw;
+    });
+  }
+
+  var RATE_FIELD_LABELS = {
+    lodging_tier1_cap: 'תקרת לינה — לילות 1–7', lodging_tier2_floor: 'סף מוכר במלואו — לינה 8–90',
+    lodging_tier2_pct: 'אחוז הכרה מעל הסף', lodging_tier3_cap: 'תקרת לינה — מעל 90 לילה',
+    perdiem_with_lodging: 'אש״ל — יש לינה בקבלות', perdiem_no_lodging: 'אש״ל — אין לינה בקבלות',
+    car_cap_per_day: 'תקרת רכב שכור ליום', uplift_pct: 'מכפיל מדינות מוטבות',
+    uplift_countries: 'רשימת מדינות מוטבות'
+  };
+
+  function renderChangelog(history){
+    var tbody = document.getElementById('changelog-body');
+    if (!history || !history.length) { tbody.innerHTML = '<tr><td colspan="4"><div class="empty">אין עדכונים עדיין</div></td></tr>'; return; }
+    tbody.innerHTML = history.map(function(h){
+      var label = RATE_FIELD_LABELS[h.field] || h.field;
+      var oldV, newV;
+      try { oldV = JSON.parse(h.old_value); } catch(e) { oldV = h.old_value; }
+      try { newV = JSON.parse(h.new_value); } catch(e) { newV = h.new_value; }
+      return '<tr><td>'+fmtDate(h.ts)+'</td><td>'+(h.updated_by||'—')+'</td><td>'+label+'</td>'
+        + '<td class="diff"><span class="old">'+JSON.stringify(oldV)+'</span> → <span class="new">'+JSON.stringify(newV)+'</span></td></tr>';
+    }).join('');
+  }
+
+  function loadRates(year){
+    fetch('/api/admin/rates/'+year, {credentials:'same-origin'})
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        currentRates = d.rates;
+        document.querySelector('.save-bar .meta').textContent = 'עודכן לאחרונה על ידי ' + (d.updated_by||'—') + ' · ' + fmtDate(d.updated_at);
+        fillRateInputs();
+        renderCountries();
+        renderChangelog(d.history);
+      });
+  }
+  document.getElementById('rate-year-select').addEventListener('change', function(e){
+    loadRates(e.target.value);
+  });
+  loadRates(document.getElementById('rate-year-select').value);
+
+  var toastTimer;
+  function showToast(msg){
+    var t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ t.classList.remove('show'); }, 2400);
+  }
+
+  document.getElementById('save-rates-btn').addEventListener('click', function(){
+    if (!currentRates) return;
+    document.querySelectorAll('[data-rate]').forEach(function(el){
+      var map = RATE_FIELD_MAP[el.dataset.rate];
+      if (!map) return;
+      var val = Number(el.value);
+      currentRates[map.key] = map.scale ? val * map.scale : val;
+    });
+    var year = document.getElementById('rate-year-select').value;
+    fetch('/api/admin/rates/'+year, {
+      method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({rates: currentRates})
+    }).then(function(r){ return r.json(); }).then(function(res){
+      if (res.ok) { showToast('✓ התעריפים נשמרו לשנת ' + year); loadRates(year); }
+      else showToast('✗ שגיאה בשמירה');
+    }).catch(function(){ showToast('✗ שגיאת רשת'); });
+  });
+
+  document.getElementById('fx-sync-now').addEventListener('click', function(){
+    showToast('מריץ סנכרון…');
+    fetch('/api/admin/fx-sync', {method:'POST', credentials:'same-origin'})
+      .then(function(r){ return r.json(); })
+      .then(function(){ return fetch('/api/admin/fx-status', {credentials:'same-origin'}); })
+      .then(function(r){ return r.json(); })
+      .then(function(status){
+        if (status.last_sync) document.getElementById('fx-last-sync').textContent = status.last_sync.slice(0,16).replace('T',' ');
+        if (status.next_sync) document.getElementById('fx-next-sync').textContent = status.next_sync.slice(0,16).replace('T',' ');
+        showToast('✓ הסנכרון רץ — עודכן מבנק ישראל');
+      })
+      .catch(function(){ showToast('✗ שגיאה בסנכרון'); });
+  });
+
+  document.querySelectorAll('nav button').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      document.querySelectorAll('nav button').forEach(function(b){ b.classList.remove('active'); });
+      document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('active'); });
+      btn.classList.add('active');
+      document.getElementById('page-' + btn.dataset.page).classList.add('active');
+    });
+  });
+})();
+</script>

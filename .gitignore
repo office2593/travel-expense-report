@@ -1,0 +1,14 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# runtime data -- regenerated, not source
+app.db
+fx_rates.db
+uploads/
+generated_reports/
+
+# secrets -- never commit (this is where the Google service account key from
+# drive_storage.py's setup instructions would land if placed in this folder)
+*.json

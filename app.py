@@ -67,6 +67,7 @@ _init()
 # Static pages
 # ---------------------------------------------------------------------------
 
+@app.get("/")
 @app.get("/travel/new")
 def wizard_page():
     return send_from_directory(BASE_DIR / "static", "wizard.html")

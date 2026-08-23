@@ -94,7 +94,8 @@ _init()
 
 @app.get("/")
 @app.get("/travel/new")
-def wizard_page():
+@app.get("/travel/draft/<token>")
+def wizard_page(token=None):
     return send_from_directory(BASE_DIR / "static", "wizard.html")
 
 

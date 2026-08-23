@@ -275,6 +275,19 @@
   var ALLOWED_FILE_TYPES = ['application/pdf', 'image/jpeg', 'image/png'];
   var ALLOWED_ACCEPT = 'application/pdf,image/jpeg,image/png';
 
+  var pendingDraftPayload = null;
+  var draftTokenMatch = location.pathname.match(/^\/travel\/draft\/([^\/]+)/);
+  if (draftTokenMatch) {
+    fetch('/api/drafts/' + draftTokenMatch[1], { credentials: 'same-origin' })
+      .then(function(r){ return r.json(); })
+      .then(function(res){
+        if (res.ok) { pendingDraftPayload = res.payload; state.gate.email = res.email; }
+        else { state.gate.error = res.error || 'הקישור אינו תקין.'; }
+        render();
+      })
+      .catch(function(){ state.gate.error = 'שגיאת רשת בטעינת הטיוטה.'; render(); });
+  }
+
   function apiSendOtp(email){
     return fetch('/api/otp/send', { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'same-origin', body: JSON.stringify({email:email}) })
       .then(function(r){ return r.json(); }).catch(function(){ return {ok:false, error:'שגיאת רשת.'}; });
@@ -327,6 +340,42 @@
       travelers: state.travelers.map(serializeTraveler),
       legal_confirmed: state.legalConfirmed,
     };
+  }
+
+  function fileFromRef(ref){
+    if (!ref) return null;
+    var name = ref.split('/').pop();
+    var us = name.indexOf('_');
+    var prefix = us >= 0 ? name.slice(0, us) : '';
+    var rest = us >= 0 ? name.slice(us + 1) : '';
+    return { ref: ref, name: (prefix.length === 8 && rest) ? rest : name };
+  }
+
+  function applyDraftPayload(payload){
+    var t = payload.trip || {};
+    state.trip.contactName = t.contact_name || '';
+    state.trip.destination = t.destination || '';
+    state.trip.country = t.country || '';
+    state.trip.startDate = t.start_date || '';
+    state.trip.endDate = t.end_date || '';
+    state.trip.purpose = t.purpose || '';
+    state.trip.purposeExplanation = t.purpose_explanation || '';
+    state.trip.proofFile = fileFromRef(t.proof_file_ref);
+
+    var rangeKey = state.trip.startDate + '_' + state.trip.endDate;
+    state.travelers = (payload.travelers || []).map(function(pt, i){
+      var trav = newTraveler(i === 0 ? 't0' : ('t' + i + '_' + Math.floor(Math.random() * 1000)), pt.name, pt.role);
+      trav.days = (pt.days || []).map(function(d){ return { date: d.date, status: d.status }; });
+      trav.rangeKey = rangeKey;
+      trav.flight = { price: pt.flight_price != null ? String(pt.flight_price) : '', currency: pt.flight_currency || 'USD', cls: pt.flight_class || 'economy', file: fileFromRef(pt.flight_file_ref) };
+      trav.lodging = { hotel: pt.lodging_hotel || '', costPerNight: pt.lodging_cost != null ? String(pt.lodging_cost) : '', currency: pt.lodging_currency || 'USD', file: fileFromRef(pt.lodging_file_ref) };
+      trav.car = { enabled: !!pt.car_enabled, days: pt.car_days != null ? String(pt.car_days) : '', costPerDay: pt.car_cost_per_day != null ? String(pt.car_cost_per_day) : '', currency: pt.car_currency || 'USD', file: fileFromRef(pt.car_file_ref) };
+      return trav;
+    });
+    if (!state.travelers.length) state.travelers = [ newTraveler('t0', 'אני (הלקוח)', 'primary') ];
+    state.activeTraveler = state.travelers[0].id;
+    state.legalConfirmed = !!payload.legal_confirmed;
+    state.step = 0;
   }
 
   function apiSaveDraft(){
@@ -716,6 +765,7 @@
           state.tripId = startRes.trip_id;
           state.gate.verified = true;
           state.trip.contactEmail = state.gate.email;
+          if (pendingDraftPayload) { applyDraftPayload(pendingDraftPayload); pendingDraftPayload = null; }
           render();
         });
       });

@@ -25,7 +25,14 @@ Before the first real deploy, in the Railway project settings:
    https://<your-railway-domain>/admin/auth/callback
 """
 
-from app import app
+import threading
+
+from app import _fx_scheduler_loop, app
+
+# Started here rather than in app.py so pytest importing `app` directly never
+# spins this up (it would otherwise make a real network call on a fresh,
+# never-synced fx_rates.db during test collection).
+threading.Thread(target=_fx_scheduler_loop, daemon=True).start()
 
 if __name__ == "__main__":
     app.run()

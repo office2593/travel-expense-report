@@ -16,6 +16,8 @@ from __future__ import annotations
 
 import json
 import secrets
+import threading
+import time
 import uuid
 from datetime import date, datetime, timedelta
 from pathlib import Path
@@ -58,6 +60,29 @@ def _init():
     db.init_db()
     rates_store.seed_if_empty()
     rates_store.load_all_into_engine()
+
+
+def _fx_scheduler_loop():
+    # Single lightweight daemon thread instead of a scheduler dependency --
+    # fine as long as this runs with one gunicorn worker (the current setup).
+    # If workers are ever scaled up, each would run its own copy of this loop;
+    # harmless since fx_sync.sync() just re-upserts on conflict, but wasteful.
+    if fx_sync.sync_status()["last_sync"] is None:
+        try:
+            fx_sync.run_daily_sync()
+        except Exception:
+            pass  # errors are already recorded in fx_sync_log by sync()
+
+    while True:
+        now = datetime.now()
+        next_run = now.replace(hour=6, minute=0, second=0, microsecond=0)
+        if next_run <= now:
+            next_run += timedelta(days=1)
+        time.sleep((next_run - now).total_seconds())
+        try:
+            fx_sync.run_daily_sync()
+        except Exception:
+            pass
 
 
 _init()

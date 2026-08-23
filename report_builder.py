@@ -243,7 +243,7 @@ def build_report_pdf(trip_row, traveler_rows: list, output_path: str | Path) -> 
                 ref = t[ref_field] if ref_field in t.keys() else None
                 if not ref:
                     continue
-                _append_attachment(writer, storage.get_path(ref))
+                _append_attachment(writer, storage.get_bytes(ref), storage.suffix(ref))
 
         merged_pdf = tmp / "merged.pdf"
         with open(merged_pdf, "wb") as f:
@@ -254,21 +254,21 @@ def build_report_pdf(trip_row, traveler_rows: list, output_path: str | Path) -> 
     return {**result, "grand_total_recognized_ils": grand_total_recognized_ils, "rate_year": rate_year}
 
 
-def _append_attachment(writer: PdfWriter, path: Path) -> None:
-    suffix = path.suffix.lower()
+def _append_attachment(writer: PdfWriter, file_bytes: bytes, suffix: str) -> None:
+    suffix = suffix.lower()
     if suffix == ".pdf":
-        for page in PdfReader(path).pages:
+        for page in PdfReader(io.BytesIO(file_bytes)).pages:
             writer.add_page(page)
         return
     if suffix in (".jpg", ".jpeg", ".png"):
-        img = Image.open(path).convert("RGB")
+        img = Image.open(io.BytesIO(file_bytes)).convert("RGB")
         buf = io.BytesIO()
         img.save(buf, format="PDF")
         buf.seek(0)
         for page in PdfReader(buf).pages:
             writer.add_page(page)
         return
-    raise ValueError(f"Unsupported attachment type: {path}")
+    raise ValueError(f"Unsupported attachment type: {suffix}")
 
 
 if __name__ == "__main__":

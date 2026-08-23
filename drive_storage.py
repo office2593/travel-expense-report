@@ -20,13 +20,18 @@ Architecture:
 
 One-time setup (do this before this module can run):
     1. In Google Cloud Console, create a project and enable the Drive API.
-    2. Create a Service Account, download its JSON key file, and set
-       GOOGLE_SERVICE_ACCOUNT_FILE to its path (keep the key out of the
-       repo -- .gitignore it, or better, load it from a secrets manager).
+    2. Create a Service Account and generate a JSON key for it. On a PaaS
+       host like Railway with no durable local filesystem to keep the key
+       file on, set GOOGLE_SERVICE_ACCOUNT_JSON to the *entire contents* of
+       that key file as one environment variable (this is the pattern this
+       module prefers). For local development, GOOGLE_SERVICE_ACCOUNT_FILE
+       (a path to the key file, kept out of the repo / .gitignore'd) also
+       works and is checked as a fallback.
     3. In Google Drive, create (or pick) a Shared Drive for receipts, and
        add the service account's email (looks like
        xxx@yyy.iam.gserviceaccount.com) as a member with "Content Manager"
-       access. Set SHARED_DRIVE_ID to that Shared Drive's ID (from its URL).
+       access. Set RECEIPTS_SHARED_DRIVE_ID to that Shared Drive's ID (from
+       its URL).
 
 This module is written against the real Drive API v3 client library and
 is believed correct, but has NOT been run against a live Google account in
@@ -42,19 +47,30 @@ import os
 from typing import BinaryIO, Optional
 
 SHARED_DRIVE_ID = os.environ.get("RECEIPTS_SHARED_DRIVE_ID", "")
+SERVICE_ACCOUNT_JSON = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON", "")
 SERVICE_ACCOUNT_FILE = os.environ.get("GOOGLE_SERVICE_ACCOUNT_FILE", "")
 SCOPES = ["https://www.googleapis.com/auth/drive"]
 
 
 def _get_service():
+    import json
+
     from google.oauth2 import service_account
     from googleapiclient.discovery import build
 
-    if not SERVICE_ACCOUNT_FILE:
-        raise RuntimeError("GOOGLE_SERVICE_ACCOUNT_FILE is not set.")
-    creds = service_account.Credentials.from_service_account_file(
-        SERVICE_ACCOUNT_FILE, scopes=SCOPES
-    )
+    if SERVICE_ACCOUNT_JSON:
+        creds = service_account.Credentials.from_service_account_info(
+            json.loads(SERVICE_ACCOUNT_JSON), scopes=SCOPES
+        )
+    elif SERVICE_ACCOUNT_FILE:
+        creds = service_account.Credentials.from_service_account_file(
+            SERVICE_ACCOUNT_FILE, scopes=SCOPES
+        )
+    else:
+        raise RuntimeError(
+            "Set GOOGLE_SERVICE_ACCOUNT_JSON (the key file's full contents -- "
+            "preferred on Railway) or GOOGLE_SERVICE_ACCOUNT_FILE (a local path)."
+        )
     return build("drive", "v3", credentials=creds)
 
 

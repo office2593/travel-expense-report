@@ -178,7 +178,7 @@ def api_upload(trip_id):
     file_bytes = f.read()
     if len(file_bytes) > 10 * 1024 * 1024:
         return jsonify(ok=False, error="הקובץ גדול מ-10MB"), 400
-    ref = storage.save_upload(trip_id, f.filename, file_bytes)
+    ref = storage.save_upload(trip_id, f.filename, file_bytes, mime_type=f.mimetype)
     return jsonify(ok=True, ref=ref, filename=storage.original_name(ref))
 
 

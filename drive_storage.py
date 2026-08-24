@@ -2,14 +2,16 @@
 Receipt storage on the office's Google Drive instead of app-server disk.
 
 Architecture:
-    - Files are stored in a Google Shared Drive ("Shared Drive", formerly
-      "Team Drive") that the office already uses -- NOT a regular "My
-      Drive". A service account has no storage quota of its own on a
-      regular Drive; a Shared Drive's storage belongs to the organization,
-      so this is the standard pattern for a backend robot writing files on
-      a business's behalf.
-    - One folder per submission (named "{trip_id} - {client_name}"),
-      created on first upload.
+    - Files are stored under one root folder in a real Google Drive the
+      office already uses (a regular "My Drive" folder, shared with the
+      service account as an Editor -- NOT a formal "Shared Drive", which
+      needs a Workspace tier that supports it and its own separate setup).
+      When a service account creates a file inside a folder shared to it
+      this way, the file is owned by (and counts against the quota of)
+      whoever owns the folder -- the human, not the robot -- so a plain
+      shared folder works fine for this without any Shared Drive machinery.
+    - One subfolder per submission (named "{trip_id} - {client_name}"),
+      created under the root folder on first upload.
     - The app's own database stores only the Drive `file_id` (and
       `web_view_link` for a human-clickable link in the admin panel) per
       uploaded receipt -- never the file bytes.
@@ -27,17 +29,13 @@ One-time setup (do this before this module can run):
        module prefers). For local development, GOOGLE_SERVICE_ACCOUNT_FILE
        (a path to the key file, kept out of the repo / .gitignore'd) also
        works and is checked as a fallback.
-    3. In Google Drive, create (or pick) a Shared Drive for receipts, and
-       add the service account's email (looks like
-       xxx@yyy.iam.gserviceaccount.com) as a member with "Content Manager"
-       access. Set RECEIPTS_SHARED_DRIVE_ID to that Shared Drive's ID (from
-       its URL).
+    3. In Google Drive, create (or pick) a regular folder for receipts,
+       and share it with the service account's email (looks like
+       xxx@yyy.iam.gserviceaccount.com) with "Editor" access. Set
+       RECEIPTS_FOLDER_ID to that folder's id (the long string in its URL,
+       after .../folders/).
 
-This module is written against the real Drive API v3 client library and
-is believed correct, but has NOT been run against a live Google account in
-this session (unlike calc_engine.py and fx_sync.py, which were actually
-executed) -- there were no credentials available to test with. Verify it
-against a real service account before relying on it.
+This module is written against the real Drive API v3 client library.
 """
 
 from __future__ import annotations
@@ -46,7 +44,7 @@ import io
 import os
 from typing import BinaryIO, Optional
 
-SHARED_DRIVE_ID = os.environ.get("RECEIPTS_SHARED_DRIVE_ID", "")
+ROOT_FOLDER_ID = os.environ.get("RECEIPTS_FOLDER_ID", "")
 SERVICE_ACCOUNT_JSON = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON", "")
 SERVICE_ACCOUNT_FILE = os.environ.get("GOOGLE_SERVICE_ACCOUNT_FILE", "")
 SCOPES = ["https://www.googleapis.com/auth/drive"]
@@ -75,17 +73,16 @@ def _get_service():
 
 
 def ensure_trip_folder(trip_id: str, client_name: str) -> str:
-    """Returns the Drive folder id for this trip, creating it if needed."""
+    """Returns the Drive folder id for this trip, creating it under
+    ROOT_FOLDER_ID if needed."""
     service = _get_service()
     folder_name = f"{trip_id} - {client_name}"
     query = (
-        f"name = '{folder_name}' and mimeType = 'application/vnd.google-apps.folder' "
-        f"and trashed = false"
+        f"'{ROOT_FOLDER_ID}' in parents and name = '{folder_name}' "
+        f"and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
     )
     results = service.files().list(
         q=query,
-        corpora="drive",
-        driveId=SHARED_DRIVE_ID,
         includeItemsFromAllDrives=True,
         supportsAllDrives=True,
         fields="files(id, name)",
@@ -97,7 +94,7 @@ def ensure_trip_folder(trip_id: str, client_name: str) -> str:
     metadata = {
         "name": folder_name,
         "mimeType": "application/vnd.google-apps.folder",
-        "parents": [SHARED_DRIVE_ID],
+        "parents": [ROOT_FOLDER_ID],
     }
     folder = service.files().create(
         body=metadata, supportsAllDrives=True, fields="id"

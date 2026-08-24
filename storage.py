@@ -1,7 +1,7 @@
 """
 File storage for uploaded receipts. Local disk under uploads/ is the
 default backend; automatically switches to Google Drive (drive_storage.py)
-when RECEIPTS_SHARED_DRIVE_ID is set, so nothing else in the app needs to
+when RECEIPTS_FOLDER_ID is set, so nothing else in the app needs to
 change -- routes only ever deal with opaque `ref` strings. Drive-backed
 refs are prefixed "drive:<file_id>:<original_filename>" so original_name()
 never needs a network call just to display a filename; local refs are
@@ -22,7 +22,7 @@ _DRIVE_PREFIX = "drive:"
 
 def _drive_enabled() -> bool:
     import drive_storage
-    return bool(drive_storage.SHARED_DRIVE_ID)
+    return bool(drive_storage.ROOT_FOLDER_ID)
 
 
 def save_upload(trip_id: str, filename: str, file_bytes: bytes, mime_type: str = "") -> str:

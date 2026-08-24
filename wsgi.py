@@ -16,9 +16,10 @@ Before the first real deploy, in the Railway project settings:
    for what each is for and how to obtain it):
        FLASK_SECRET_KEY
        GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, ADMIN_ALLOWED_EMAILS  (admin_auth.py)
-       SENDGRID_API_KEY, SENDGRID_FROM_EMAIL                         (otp.py)
-   Optional -- falls back to local disk storage under DATA_DIR if unset:
-       GOOGLE_SERVICE_ACCOUNT_FILE, RECEIPTS_SHARED_DRIVE_ID          (drive_storage.py)
+       SENDGRID_API_KEY, SENDGRID_FROM_EMAIL                         (mailer.py)
+   Optional -- falls back to local disk storage under DATA_DIR if unset,
+   and skips the daily DB backup if unset (db_backup.py checks the same var):
+       GOOGLE_SERVICE_ACCOUNT_JSON, RECEIPTS_FOLDER_ID                (drive_storage.py)
 
 3. In Google Cloud Console, add this Railway deployment's real URL to the
    OAuth client's authorized redirect URIs:
@@ -27,12 +28,13 @@ Before the first real deploy, in the Railway project settings:
 
 import threading
 
-from app import _fx_scheduler_loop, app
+from app import _db_backup_scheduler_loop, _fx_scheduler_loop, app
 
 # Started here rather than in app.py so pytest importing `app` directly never
-# spins this up (it would otherwise make a real network call on a fresh,
-# never-synced fx_rates.db during test collection).
+# spins these up (they would otherwise make real network calls -- to BOI's FX
+# API and to Drive -- during test collection).
 threading.Thread(target=_fx_scheduler_loop, daemon=True).start()
+threading.Thread(target=_db_backup_scheduler_loop, daemon=True).start()
 
 if __name__ == "__main__":
     app.run()

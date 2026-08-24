@@ -1,4 +1,5 @@
 Flask
+Flask-Limiter
 pytest
 jinja2
 pypdf

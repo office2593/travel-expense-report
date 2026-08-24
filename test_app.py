@@ -38,6 +38,11 @@ def client(tmp_path, monkeypatch):
     appmod.REPORTS_DIR = tmp_path / "reports"
     appmod.REPORTS_DIR.mkdir(exist_ok=True)
     appmod.app.config["TESTING"] = True
+    # The rate limiter is a module-level singleton shared by every test in
+    # this session (appmod is the same cached module object each time), so
+    # its counters would otherwise accumulate across tests and start
+    # rejecting requests partway through the suite.
+    appmod.limiter.enabled = False
     appmod._init()
     try:
         with appmod.app.test_client() as c:

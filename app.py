@@ -14,6 +14,7 @@ redirect to a login that always fails.
 
 from __future__ import annotations
 
+import io
 import json
 import secrets
 import threading
@@ -23,12 +24,17 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 
 from flask import Flask, jsonify, request, send_file, send_from_directory, session
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from PIL import Image
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 import admin_auth
 import calc_engine
 import db
+import db_backup
 import fx_sync
+import mailer
 import otp
 import paths
 import rates_store
@@ -55,11 +61,37 @@ import os
 app.secret_key = os.environ.get("FLASK_SECRET_KEY") or secrets.token_hex(32)
 admin_auth.init_app(app)
 
+# In-memory limiter -- fine as long as this runs as a single gunicorn worker
+# (the current setup); would need a shared backend (e.g. Redis) if scaled
+# to multiple workers/instances, since counts wouldn't be shared between them.
+limiter = Limiter(get_remote_address, app=app, default_limits=[], storage_uri="memory://")
+
 
 def _init():
     db.init_db()
     rates_store.seed_if_empty()
     rates_store.load_all_into_engine()
+
+
+def _alert_office(subject: str, message: str) -> None:
+    try:
+        mailer.send_email(mailer.SENDGRID_FROM_EMAIL, subject, message)
+    except Exception:
+        pass  # an alert email failing must never crash the scheduler thread
+
+
+def _run_fx_sync_with_alert() -> None:
+    try:
+        summary = fx_sync.run_daily_sync()
+    except Exception as e:
+        _alert_office("התראה: כשל בסנכרון שערי מטבע", f"סנכרון שערי המטבע נכשל לגמרי:\n{e}")
+        return
+    failed = [ccy for ccy, info in summary.items() if info.get("status") != "ok"]
+    if failed:
+        _alert_office(
+            "התראה: כשל בסנכרון שערי מטבע",
+            "סנכרון שערי המטבע נכשל עבור: " + ", ".join(failed),
+        )
 
 
 def _fx_scheduler_loop():
@@ -68,10 +100,7 @@ def _fx_scheduler_loop():
     # If workers are ever scaled up, each would run its own copy of this loop;
     # harmless since fx_sync.sync() just re-upserts on conflict, but wasteful.
     if fx_sync.sync_status()["last_sync"] is None:
-        try:
-            fx_sync.run_daily_sync()
-        except Exception:
-            pass  # errors are already recorded in fx_sync_log by sync()
+        _run_fx_sync_with_alert()
 
     while True:
         now = datetime.now()
@@ -79,10 +108,20 @@ def _fx_scheduler_loop():
         if next_run <= now:
             next_run += timedelta(days=1)
         time.sleep((next_run - now).total_seconds())
+        _run_fx_sync_with_alert()
+
+
+def _db_backup_scheduler_loop():
+    while True:
+        now = datetime.now()
+        next_run = now.replace(hour=6, minute=30, second=0, microsecond=0)
+        if next_run <= now:
+            next_run += timedelta(days=1)
+        time.sleep((next_run - now).total_seconds())
         try:
-            fx_sync.run_daily_sync()
-        except Exception:
-            pass
+            db_backup.run_backup()
+        except Exception as e:
+            _alert_office("התראה: כשל בגיבוי מסד הנתונים", f"גיבוי מסד הנתונים ל-Drive נכשל:\n{e}")
 
 
 _init()
@@ -110,6 +149,7 @@ def admin_page():
 # ---------------------------------------------------------------------------
 
 @app.post("/api/otp/send")
+@limiter.limit("5 per 15 minutes")
 def api_otp_send():
     email = (request.json or {}).get("email", "").strip()
     if not email or "@" not in email:
@@ -122,6 +162,7 @@ def api_otp_send():
 
 
 @app.post("/api/otp/verify")
+@limiter.limit("10 per 15 minutes")
 def api_otp_verify():
     body = request.json or {}
     email = body.get("email", "").strip()
@@ -148,6 +189,7 @@ def _require_verified_email() -> tuple[str, None] | tuple[None, tuple]:
 # ---------------------------------------------------------------------------
 
 @app.post("/api/trips/start")
+@limiter.limit("10 per hour")
 def api_trips_start():
     email, err = _require_verified_email()
     if err:
@@ -164,6 +206,20 @@ def api_trips_start():
     return jsonify(trip_id=trip_id)
 
 
+def _content_matches_type(file_bytes: bytes, mimetype: str) -> bool:
+    """The client-supplied Content-Type header is trivially spoofable --
+    this actually opens/verifies the bytes instead of trusting it."""
+    if mimetype == "application/pdf":
+        return file_bytes[:5] == b"%PDF-"
+    if mimetype in ("image/jpeg", "image/png"):
+        try:
+            Image.open(io.BytesIO(file_bytes)).verify()
+            return True
+        except Exception:
+            return False
+    return False
+
+
 @app.post("/api/trips/<trip_id>/upload")
 def api_upload(trip_id):
     email, err = _require_verified_email()
@@ -178,6 +234,8 @@ def api_upload(trip_id):
     file_bytes = f.read()
     if len(file_bytes) > 10 * 1024 * 1024:
         return jsonify(ok=False, error="הקובץ גדול מ-10MB"), 400
+    if not _content_matches_type(file_bytes, f.mimetype):
+        return jsonify(ok=False, error="תוכן הקובץ אינו תואם לסוג שצוין"), 400
     ref = storage.save_upload(trip_id, f.filename, file_bytes, mime_type=f.mimetype)
     return jsonify(ok=True, ref=ref, filename=storage.original_name(ref))
 
@@ -188,6 +246,7 @@ def api_draft_save(trip_id):
     if err:
         return err
     payload = request.json or {}
+    send_link = bool(payload.pop("_send_email", False))
     token = secrets.token_hex(16)
     expires = (datetime.now() + timedelta(days=7)).isoformat()
     with db.get_conn() as conn:
@@ -196,6 +255,17 @@ def api_draft_save(trip_id):
             (token, email, json.dumps(payload), expires),
         )
         db.log_event(conn, trip_id, "draft_saved", actor=email)
+    if send_link:
+        link = f"{request.url_root.rstrip('/')}/travel/draft/{token}"
+        try:
+            mailer.send_email(
+                email,
+                "קישור לטיוטה שמורה - דוח תיאום הוצאות נסיעה",
+                f"שלום,\n\nשמרנו את הטיוטה שלך. אפשר לחזור אליה ולהמשיך למלא בכל עת "
+                f"(הקישור בתוקף ל-7 ימים):\n{link}\n\nבברכה,\n{mailer.SENDGRID_FROM_NAME}",
+            )
+        except RuntimeError:
+            pass  # the draft itself is already saved regardless; the email is a bonus
     return jsonify(ok=True, token=token)
 
 
@@ -286,6 +356,30 @@ def api_submit(trip_id):
             conn.execute("UPDATE trips SET status='failed' WHERE id=?", (trip_id,))
             db.log_event(conn, trip_id, "pdf_generation_failed", actor="system", note=str(e))
         return jsonify(ok=False, error="שגיאה בהפקת הדוח. ניתן לנסות לשלוח שוב, או לפנות למשרד."), 500
+
+    # Best-effort: the PDF is already generated and saved successfully at this
+    # point, so a failure here must not flip status back to failed or fail the
+    # response -- emailing a copy is a bonus on top of a successful submission.
+    try:
+        pdf_bytes = pdf_path.read_bytes()
+        mailer.send_email(
+            trip_row["contact_email"],
+            f"דוח תיאום הוצאות נסיעה לחו\"ל - {trip_id}",
+            "מצורף עותק הדוח שהופק עבור הנסיעה שדיווחת עליה.",
+            attachments=[{"filename": f"{trip_id}.pdf", "content_bytes": pdf_bytes, "mime_type": "application/pdf"}],
+        )
+        mailer.send_email(
+            mailer.SENDGRID_FROM_EMAIL,
+            f"הגשה חדשה: {trip_id} - {trip_data.get('contact_name', '')}",
+            f"התקבלה הגשה חדשה מ-{trip_row['contact_email']}. "
+            f"סכום מוכר: {result['grand_total_recognized_ils']} ש\"ח.",
+            attachments=[{"filename": f"{trip_id}.pdf", "content_bytes": pdf_bytes, "mime_type": "application/pdf"}],
+        )
+        with db.get_conn() as conn:
+            db.log_event(conn, trip_id, "report_emailed", actor="system")
+    except Exception as e:
+        with db.get_conn() as conn:
+            db.log_event(conn, trip_id, "report_email_failed", actor="system", note=str(e))
 
     return jsonify(ok=True, trip_id=trip_id, submission_id=trip_id,
                    grand_total_recognized_ils=result["grand_total_recognized_ils"])

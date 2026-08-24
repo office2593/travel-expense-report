@@ -378,8 +378,10 @@
     state.step = 0;
   }
 
-  function apiSaveDraft(){
-    return fetch('/api/trips/'+state.tripId+'/draft', { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'same-origin', body: JSON.stringify(serializePayload()) })
+  function apiSaveDraft(sendEmail){
+    var payload = serializePayload();
+    if (sendEmail) payload._send_email = true;
+    return fetch('/api/trips/'+state.tripId+'/draft', { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'same-origin', body: JSON.stringify(payload) })
       .then(function(r){ return r.json(); }).catch(function(){ return {ok:false, error:'שגיאת רשת.'}; });
   }
   function apiSubmitTrip(){
@@ -701,6 +703,7 @@
     if (action === 'next') {
       if (state.step === 0 && !validateStep0()) return;
       state.step++; render();
+      if (state.tripId) apiSaveDraft(false); // silent autosave, protects against a crashed/closed tab
     } else if (action === 'back') {
       state.step--; render();
     } else if (action === 'submit') {
@@ -726,7 +729,7 @@
       render();
     } else if (action === 'save-draft') {
       state.draft.busy = true; render();
-      apiSaveDraft().then(function(res){
+      apiSaveDraft(true).then(function(res){
         state.draft.busy = false;
         if (!res.ok) { state.apiError = res.error || 'שגיאה בשמירת הטיוטה.'; render(); return; }
         state.draft.token = res.token;
@@ -853,6 +856,13 @@
     if (bind.indexOf('trip.') === 0 || bind.indexOf('newCompanion.') === 0) set(state, bind, e.target.value);
     else set(t, bind, e.target.value);
     if (bind === 'trip.purpose') render();
+  });
+
+  window.addEventListener('beforeunload', function(e){
+    if (state.gate.verified && !state.submitted) {
+      e.preventDefault();
+      e.returnValue = '';
+    }
   });
 
   render();

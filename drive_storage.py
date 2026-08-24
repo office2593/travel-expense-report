@@ -76,13 +76,14 @@ def _get_service():
     return build("drive", "v3", credentials=creds)
 
 
-def ensure_trip_folder(trip_id: str, client_name: str) -> str:
-    """Returns the Drive folder id for this trip, creating it under
-    ROOT_FOLDER_ID if needed."""
+def ensure_folder(name: str, parent_id: str | None = None) -> str:
+    """Returns the Drive folder id for `name` directly under `parent_id`
+    (ROOT_FOLDER_ID if omitted), creating it if needed. Shared by
+    ensure_trip_folder() (receipts) and db_backup.py (DB snapshots)."""
     service = _get_service()
-    folder_name = f"{trip_id} - {client_name}"
+    parent_id = parent_id or ROOT_FOLDER_ID
     query = (
-        f"'{ROOT_FOLDER_ID}' in parents and name = '{folder_name}' "
+        f"'{parent_id}' in parents and name = '{name}' "
         f"and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
     )
     results = service.files().list(
@@ -96,14 +97,20 @@ def ensure_trip_folder(trip_id: str, client_name: str) -> str:
         return existing[0]["id"]
 
     metadata = {
-        "name": folder_name,
+        "name": name,
         "mimeType": "application/vnd.google-apps.folder",
-        "parents": [ROOT_FOLDER_ID],
+        "parents": [parent_id],
     }
     folder = service.files().create(
         body=metadata, supportsAllDrives=True, fields="id"
     ).execute()
     return folder["id"]
+
+
+def ensure_trip_folder(trip_id: str, client_name: str) -> str:
+    """Returns the Drive folder id for this trip, creating it under
+    ROOT_FOLDER_ID if needed."""
+    return ensure_folder(f"{trip_id} - {client_name}")
 
 
 def upload_receipt(

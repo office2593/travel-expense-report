@@ -865,6 +865,28 @@
     }
   });
 
+  // When embedded via <iframe> on the office's own site, the page tells its
+  // parent how tall it is on every content change so the embedding page can
+  // resize the iframe to fit -- otherwise a fixed-height iframe would clip
+  // the form or show an internal scrollbar, since the wizard's height varies
+  // a lot between steps (e.g. adding a companion traveler, file-error text).
+  if (window.self !== window.top) {
+    var lastSentHeight = 0;
+    var sendHeight = function(){
+      var h = document.body.scrollHeight;
+      if (h !== lastSentHeight) {
+        lastSentHeight = h;
+        window.parent.postMessage({ type: 'travel-form-resize', height: h }, '*');
+      }
+    };
+    if (window.ResizeObserver) {
+      new ResizeObserver(sendHeight).observe(document.body);
+    } else {
+      setInterval(sendHeight, 500); // older-browser fallback
+    }
+    sendHeight();
+  }
+
   render();
 })();
 </script>

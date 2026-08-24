@@ -2,14 +2,14 @@
 Receipt storage on the office's Google Drive instead of app-server disk.
 
 Architecture:
-    - Files are stored under one root folder in a real Google Drive the
-      office already uses (a regular "My Drive" folder, shared with the
-      service account as an Editor -- NOT a formal "Shared Drive", which
-      needs a Workspace tier that supports it and its own separate setup).
-      When a service account creates a file inside a folder shared to it
-      this way, the file is owned by (and counts against the quota of)
-      whoever owns the folder -- the human, not the robot -- so a plain
-      shared folder works fine for this without any Shared Drive machinery.
+    - Files are stored under one root folder inside a real Google Drive
+      "Shared Drive" (formerly "Team Drive") -- NOT a regular "My Drive"
+      folder. A service account has no storage quota of its own; Drive's
+      API rejects file creation from a service account even inside a
+      regular folder shared to it as Editor, with a 403 "Service Accounts
+      do not have storage quota" error. A Shared Drive's storage belongs
+      to the Workspace org rather than any one person, which is what lets
+      the service account write into it.
     - One subfolder per submission (named "{trip_id} - {client_name}"),
       created under the root folder on first upload.
     - The app's own database stores only the Drive `file_id` (and
@@ -29,13 +29,17 @@ One-time setup (do this before this module can run):
        module prefers). For local development, GOOGLE_SERVICE_ACCOUNT_FILE
        (a path to the key file, kept out of the repo / .gitignore'd) also
        works and is checked as a fallback.
-    3. In Google Drive, create (or pick) a regular folder for receipts,
-       and share it with the service account's email (looks like
-       xxx@yyy.iam.gserviceaccount.com) with "Editor" access. Set
-       RECEIPTS_FOLDER_ID to that folder's id (the long string in its URL,
-       after .../folders/).
+    3. In Google Drive, create (or pick) a real Shared Drive for receipts
+       (not a regular folder -- see the storageQuotaExceeded note below),
+       and add the service account's email (looks like
+       xxx@yyy.iam.gserviceaccount.com) as a member with "Content Manager"
+       access. Set RECEIPTS_FOLDER_ID to that Shared Drive's id (the long
+       string in its URL, after .../folders/).
 
-This module is written against the real Drive API v3 client library.
+This module is written against the real Drive API v3 client library and
+was verified end-to-end in production on 2026-08-24: a real service
+account uploaded a receipt into a real Shared Drive, and report_builder.py
+downloaded it back and merged it into a real generated PDF.
 """
 
 from __future__ import annotations

@@ -33,6 +33,7 @@ import admin_auth
 import calc_engine
 import db
 import db_backup
+import email_templates
 import fx_sync
 import mailer
 import otp
@@ -263,6 +264,7 @@ def api_draft_save(trip_id):
                 "קישור לטיוטה שמורה - דוח תיאום הוצאות נסיעה",
                 f"שלום,\n\nשמרנו את הטיוטה שלך. אפשר לחזור אליה ולהמשיך למלא בכל עת "
                 f"(הקישור בתוקף ל-7 ימים):\n{link}\n\nבברכה,\n{mailer.SENDGRID_FROM_NAME}",
+                html_body=email_templates.draft_link_email_html(link),
             )
         except RuntimeError:
             pass  # the draft itself is already saved regardless; the email is a bonus
@@ -362,18 +364,34 @@ def api_submit(trip_id):
     # response -- emailing a copy is a bonus on top of a successful submission.
     try:
         pdf_bytes = pdf_path.read_bytes()
+        pdf_size_kb = max(1, len(pdf_bytes) // 1024)
+        amount = result["grand_total_recognized_ils"]
+        contact_name = trip_data.get("contact_name", "")
+        traveler_count = len(travelers_data)
+        pdf_attachment = [{"filename": f"{trip_id}.pdf", "content_bytes": pdf_bytes, "mime_type": "application/pdf"}]
+
         mailer.send_email(
             trip_row["contact_email"],
             f"דוח תיאום הוצאות נסיעה לחו\"ל - {trip_id}",
             "מצורף עותק הדוח שהופק עבור הנסיעה שדיווחת עליה.",
-            attachments=[{"filename": f"{trip_id}.pdf", "content_bytes": pdf_bytes, "mime_type": "application/pdf"}],
+            attachments=pdf_attachment,
+            html_body=email_templates.report_copy_email_html(
+                contact_name, trip_id, amount, trip_data.get("destination", ""),
+                trip_data.get("country", ""), trip_data.get("start_date", ""),
+                trip_data.get("end_date", ""), traveler_count, f"{trip_id}.pdf", pdf_size_kb,
+            ),
         )
         mailer.send_email(
             mailer.SENDGRID_FROM_EMAIL,
-            f"הגשה חדשה: {trip_id} - {trip_data.get('contact_name', '')}",
+            f"הגשה חדשה: {trip_id} - {contact_name}",
             f"התקבלה הגשה חדשה מ-{trip_row['contact_email']}. "
-            f"סכום מוכר: {result['grand_total_recognized_ils']} ש\"ח.",
-            attachments=[{"filename": f"{trip_id}.pdf", "content_bytes": pdf_bytes, "mime_type": "application/pdf"}],
+            f"סכום מוכר: {amount} ש\"ח.",
+            attachments=pdf_attachment,
+            html_body=email_templates.new_submission_email_html(
+                contact_name, trip_row["contact_email"], trip_id, amount,
+                trip_data.get("destination", ""), trip_data.get("country", ""),
+                f"{trip_id}.pdf", pdf_size_kb,
+            ),
         )
         with db.get_conn() as conn:
             db.log_event(conn, trip_id, "report_emailed", actor="system")

@@ -20,8 +20,18 @@ SENDGRID_FROM_EMAIL = os.environ.get("SENDGRID_FROM_EMAIL", "office@odcpa.co.il"
 SENDGRID_FROM_NAME = os.environ.get("SENDGRID_FROM_NAME", "אורן דולב, רואה חשבון")
 
 
-def send_email(to: str, subject: str, body: str, attachments: list[dict] | None = None) -> None:
-    """attachments: list of {"filename": str, "content_bytes": bytes, "mime_type": str}."""
+def send_email(
+    to: str,
+    subject: str,
+    body: str,
+    attachments: list[dict] | None = None,
+    html_body: str | None = None,
+) -> None:
+    """attachments: list of {"filename": str, "content_bytes": bytes, "mime_type": str}.
+    html_body: pre-rendered HTML from email_templates.py (see that module) --
+    when given, sent as a real text/plain + text/html multipart/alternative
+    email so HTML-capable clients render the branded design and anything
+    else still gets the plain-text fallback."""
     if not SENDGRID_API_KEY:
         logger.warning(
             "SENDGRID_API_KEY not set -- logging instead of emailing (fine for local "
@@ -30,11 +40,15 @@ def send_email(to: str, subject: str, body: str, attachments: list[dict] | None 
         )
         return
 
+    content = [{"type": "text/plain", "value": body}]
+    if html_body:
+        content.append({"type": "text/html", "value": html_body})
+
     payload = {
         "personalizations": [{"to": [{"email": to}]}],
         "from": {"email": SENDGRID_FROM_EMAIL, "name": SENDGRID_FROM_NAME},
         "subject": subject,
-        "content": [{"type": "text/plain", "value": body}],
+        "content": content,
     }
     if attachments:
         payload["attachments"] = [

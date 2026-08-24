@@ -14,6 +14,7 @@ import random
 from datetime import datetime, timedelta
 
 from db import get_conn
+from email_templates import otp_email_html
 from mailer import send_email
 
 CODE_TTL_MINUTES = 10
@@ -39,6 +40,7 @@ def request_otp(email: str) -> None:
         email,
         "קוד אימות לטופס דיווח נסיעה",
         f"קוד האימות שלך: {code}\nהקוד בתוקף ל-{CODE_TTL_MINUTES} דקות.",
+        html_body=otp_email_html(code),
     )
 
 

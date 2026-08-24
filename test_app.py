@@ -56,7 +56,7 @@ def _captured_otp(monkeypatch, email):
     import otp
     captured = {}
 
-    def fake_send(to, subject, body):
+    def fake_send(to, subject, body, **kwargs):
         captured["code"] = body.split(": ")[1].split("\n")[0]
 
     monkeypatch.setattr(otp, "send_email", fake_send)
